@@ -50,7 +50,7 @@ main::splash_screen(0);
 # before the main loop.
 
 use DBI '1.10';
-$VERSION = '1.250';
+$VERSION = '1.260';
 
 # Now enter strict mode
 use strict;
@@ -1371,15 +1371,15 @@ sub config_menu {
 
    my $menu_file_name = "menu.txt";
    if ($main::orac_curr_db_typ eq "Oracle"){
-      if (!$main::current_db->dba_user){                # PNG
-         if ($main::current_db->png_user){              # PNG
-            $menu_file_name = "menu_dev_png.txt";       # PNG
-         } else {                                       # PNG
-            $menu_file_name = "menu_dev.txt";           # PNG
-         }                                              # PNG
+      if (!$main::current_db->dba_user){       
+         if ($main::current_db->jpeg_user){   
+            $menu_file_name = "menu_dev_jpeg.txt";
+         } else {                                
+            $menu_file_name = "menu_dev.txt";   
+         }                                     
       } else {
-         if ($main::current_db->png_user){              # PNG
-            $menu_file_name = "menu_png.txt";       # PNG
+         if ($main::current_db->jpeg_user){   
+            $menu_file_name = "menu_jpeg.txt";
          }
       }
    }

@@ -103,11 +103,11 @@ ORACLE DEVELOPER GRAPHICAL OPTION:
        of the standard Perl distribution.
     
    2.  Use of DBD-Chart also requires the separate Perl/Tk installation of
-       Tk::PNG (at least version 2.005) which is available from:
+       Tk::JPEG (at least version 2.005) which is available from:
     
        => http://www.perl.com/CPAN-local/modules/by-module/Tk/
     
-       Hopefully Tk::PNG will be part of standard Perl/Tk shortly.
+       Tk::JPEG is also available on ActiveState for ActivePerl.
 
 LINUX USERS:
 
@@ -379,6 +379,9 @@ Orac-alpha-1.2.4  Upgrade to Perl 5.6.0.  Lots of other fiddly bits to do
                   with charting, but these still very ALPHA.
 Orac-alpha-1.2.5  More development stuff, and Richard has extended
                   DDL::Oracle usage to cover even more Oracle8i areas.
+Orac-alpha-1.2.5  Couple more graphs added, graphical library now
+                  required, Tk::JPEG, because it is available on CPAN for
+                  UNIX, and ActiveState, for ActivePerl.
 
 EXTRA NOTES FOR LINUX USERS:
 

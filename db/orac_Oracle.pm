@@ -28,7 +28,7 @@ my @w_titles;
 my @w_explain;
 
 my $oracle_dba_user;
-my $png_user;    # PNG
+my $jpeg_user;   
 my $view;
 
 my %l_hlst_to_type =
@@ -190,18 +190,18 @@ sub init2 {
       $oracle_dba_user = 1;
    }
 
-   $png_user = 0;                  # PNG
-   $main::conn_comm_flag = 1;      # PNG
-   eval {                          # PNG
-      require DBD::Chart;          # PNG
-      require Tk::PNG;             # PNG
-   };                              # PNG
-   if ($@) {                       # PNG
-      $png_user = 0;               # PNG
-   } else {                        # PNG
-      $png_user = 1;               # PNG
-   }                               # PNG
-   $main::conn_comm_flag = 0;      # PNG
+   $jpeg_user = 0;                
+   $main::conn_comm_flag = 1;    
+   eval {                       
+      require DBD::Chart;      
+      require Tk::JPEG;        
+   };                        
+   if ($@) {                
+      $jpeg_user = 0;      
+   } else {               
+      $jpeg_user = 1;    
+   }                    
+   $main::conn_comm_flag = 0; 
 
    eval {
       require DDL::Oracle;
@@ -236,10 +236,10 @@ sub dba_user {
    return $oracle_dba_user;
 }
 
-sub png_user {        # PNG
-   my $self = shift;  # PNG
-   return $png_user;  # PNG
-}                     # PNG
+sub jpeg_user {      
+   my $self = shift; 
+   return $jpeg_user;
+}                   
 
 ################ Database dependent code functions below here ##################
 
@@ -3800,19 +3800,141 @@ sub dev_tables {
    }
 }
 
-=head2 dev_png
+=head2 dev_jpeg_tunen
+
+Creates various tuning pies and inserts them into a pop-up screen.
+
+=cut
+
+sub dev_jpeg_tunen {
+   my $self = shift;
+
+   # Creates Tables Viewer window
+
+   my $cm = $self->f_str('tune_health', 1);
+   my $sth = $self->{Database_conn}->prepare( $cm ) ||
+                die $self->{Database_conn}->errstr;
+   $sth->execute;
+
+   my @res;
+   my $window;
+
+   my $dbh;
+   my $rsth;
+   my $csth;
+
+   my $ratio;
+   my $anti_ratio;
+   my $real_ratio;
+
+   while (@res = $sth->fetchrow) {
+
+      $dbh = DBI->connect('dbi:Chart:');
+
+      $dbh->do('CREATE TABLE pie (label CHAR(30), ratio FLOAT)');
+      $csth = $dbh->prepare('INSERT INTO pie VALUES(?, ?)');
+
+      $real_ratio = $res[2];
+      $ratio = $real_ratio + 0.05;
+      $real_ratio = sprintf("%.2f", $real_ratio);
+      $ratio = sprintf("%.2f", $ratio);
+      $anti_ratio = 100.0 - $res[2];
+      $anti_ratio = sprintf("%.2f", $anti_ratio);
+
+      $csth->execute("", $ratio);
+      $csth->execute("", $anti_ratio);
+
+      $csth->finish;
+      $rsth = $dbh->prepare(
+         'SELECT PIECHART FROM pie ' .
+         'WHERE WIDTH=150 AND HEIGHT=150 ' .
+         'AND TITLE = \'' . $res[0] . ' ' . $real_ratio . '%\' ' .
+         'AND FORMAT=\'JPEG\' ' .
+         'AND 3-D=1 ' .
+         'AND SHOWVALUES=1 ' .
+         'AND COLOR=(purple, pink)');
+
+      # white, lgray, gray, dgray, black, 
+      # lblue, blue, dblue, gold, lyellow, yellow, 
+      # dyellow, lgreen, green. dgreen,
+      # lred, red, dred, lpurple, purple, 
+      # dpurple, lorange, orange, pink, 
+      # dpink, marine, cyan, lbrown, dbrown. 
+
+      my $buf;
+
+      $rsth->execute;
+      $rsth->bind_col(1, \$buf);
+      $rsth->fetch;
+      open OUTF, ">$main::orac_home/dev_jpeg_tunen." . $res[1] . ".jpeg";
+      binmode OUTF;
+      print OUTF $buf;
+      close OUTF;
+      $rsth->finish;
+      $dbh->do('DROP CHART pie');
+      $dbh->disconnect;
+   }
+   $sth->finish;
+
+   $window = $self->{Main_window}->Toplevel();
+   $window->title("Orac Hit Ratio Tuning Chart");
+
+   my $dev_menu;
+   my $balloon;
+   $self->create_balloon_bars(\$dev_menu, \$balloon, \$window, );
+   $self->window_exit_button(\$dev_menu, \$window, 1, \$balloon, );
+   $self->see_sql_but(\$dev_menu, \$window, \$cm, 1, \$balloon, );
+
+   my(@dev_lay) = qw/-side top -padx 5 -expand yes -fill both/;
+   my $dev_top = $window->Frame->pack(@dev_lay);
+
+   $window->{canv} =
+      $dev_top->Scrolled( 'Canvas',
+                          -relief=>'sunken',
+                          -bd=>2,
+                          -width=>540,
+                          -height=>360,
+                          -background=>$main::bc
+                        );
+   main::iconize($window);
+
+   my $x_offset = 10;
+   my $y_offset = 10;
+
+   for (1..5)
+   {
+      my $img = 
+         $window->{canv}->Photo( 
+                 -file => "$main::orac_home/dev_jpeg_tunen." . $_ . ".jpeg",
+                 -format => 'jpeg'
+                               );
+      $window->{canv}->create( 'image',$x_offset,$y_offset, 
+                               '-anchor' => 'nw', 
+                               '-image'  => $img );
+      
+      $window->{canv}->pack(-expand=>'yes',-fill=>'both');
+      $x_offset += 180;
+
+      if ($x_offset > 450){
+         $x_offset = 10;
+         $y_offset += 180;
+      }
+   }
+}
+
+=head2 dev_jpeg
 
 Creates various graphs and inserts them into a pop-up screen.
 
 =cut
 
-sub dev_png {
+sub dev_jpeg {
    my $self = shift;
    my ( $graph_type ) = @_;
 
    # Creates Tables Viewer window
 
-   my $cm = $self->f_str('dev_png',$graph_type);
+   my $cm = $self->f_str('dev_jpeg',$graph_type);
    my $sth = $self->{Database_conn}->prepare( $cm ) ||
                 die $self->{Database_conn}->errstr;
    $sth->execute;
@@ -3941,6 +4063,7 @@ sub dev_png {
          'AND X-AXIS=\'' . $x_axis . 
          '\' AND Y-AXIS=\'' . $y_axis . '\' AND ' .
          'X-ORIENT=\'VERTICAL\' AND ' .
+         'FORMAT=\'JPEG\' AND ' .
          'TITLE = \'' . $title_element . 
          '\' AND 3-D=' . $three_d . ' ' .
          'AND SHOWVALUES=' . $show_values . ' AND ' .
@@ -3958,7 +4081,7 @@ sub dev_png {
       $rsth->execute;
       $rsth->bind_col(1, \$buf);
       $rsth->fetch;
-      open OUTF, ">$main::orac_home/dev_png.png";
+      open OUTF, ">$main::orac_home/dev_jpeg.jpeg";
       binmode OUTF;
       print OUTF $buf;
       close OUTF;
@@ -3967,8 +4090,8 @@ sub dev_png {
       $dbh->disconnect;
       
       my $img = 
-         $window->{canv}->Photo( -file => "$main::orac_home/dev_png.png",
-                                 -format => 'png');
+         $window->{canv}->Photo( -file => "$main::orac_home/dev_jpeg.jpeg",
+                                 -format => 'jpeg');
       $window->{canv}->create( 'image',5,5, 
                                '-anchor' => 'nw', 
                                '-image'  => $img );
@@ -4236,7 +4359,7 @@ sub tabsp_hlist
                                       );
 
    my $canvas_id;
-   $self->dev_png_tabsp(\$canvas, \$canvas_id, 'DBATABSPACE');
+   $self->dev_jpeg_tabsp(\$canvas, \$canvas_id, 'DBATABSPACE');
 
    $canvas->configure(-scrollregion=>[ $canvas->bbox("all") ]);
    $canvas->pack(-expand=>'yes',-fill=>'both');
@@ -4268,7 +4391,7 @@ sub tabsp_hlist
                             $window->Busy(-recurse=>1);
                             $self->{Main_window}->Busy(-recurse=>1);
 
-                            $self->dev_png_tabsp(\$canvas, 
+                            $self->dev_jpeg_tabsp(\$canvas, 
                                                  \$canvas_id, 
                                                  'EXTENTID',
                                                  $datafile
@@ -4573,13 +4696,13 @@ sub post_tabsp
    return;
 }
 
-sub dev_png_tabsp {
+sub dev_jpeg_tabsp {
    my $self = shift;
    my ( $canv_ref, $canv_id_ref, $graph_type, $param1 ) = @_;
 
    # Creates Tables Viewer window
 
-   my $cm = $self->f_str('dev_png',$graph_type);
+   my $cm = $self->f_str('dev_jpeg',$graph_type);
    my $sth = $self->{Database_conn}->prepare( $cm ) ||
                 die $self->{Database_conn}->errstr;
 
@@ -4716,6 +4839,7 @@ sub dev_png_tabsp {
          'AND X-AXIS=\'' . $x_axis . 
          '\' AND Y-AXIS=\'' . $y_axis . '\' AND ' .
          'X-ORIENT=\'VERTICAL\' AND ' .
+         'FORMAT=\'JPEG\' AND ' .
          'TITLE = \'' . $title_element . 
          '\' AND 3-D=' . $three_d . ' ' .
          'AND SHOWVALUES=' . $show_values . ' AND ' .
@@ -4734,7 +4858,7 @@ sub dev_png_tabsp {
       $rsth->execute;
       $rsth->bind_col(1, \$buf);
       $rsth->fetch;
-      open OUTF, ">$main::orac_home/dev_png.png";
+      open OUTF, ">$main::orac_home/dev_jpeg.jpeg";
       binmode OUTF;
       print OUTF $buf;
       close OUTF;
@@ -4743,8 +4867,8 @@ sub dev_png_tabsp {
       $dbh->disconnect;
       
       my $img = 
-         $$canv_ref->Photo( -file => "$main::orac_home/dev_png.png",
-                            -format => 'png');
+         $$canv_ref->Photo( -file => "$main::orac_home/dev_jpeg.jpeg",
+                            -format => 'jpeg');
       $$canv_id_ref = $$canv_ref->create( 'image',5,5, 
                                           '-anchor' => 'nw', 
                                           '-image'  => $img );

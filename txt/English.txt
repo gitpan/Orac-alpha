@@ -265,6 +265,7 @@ sess_mem^Session Memory Consumption^
 sess_uga_max^Total Session UGA Max^
 sess_wt_stats^Top ORACLE Wait events^
 sga_stat^Main SGA Stats^
+sga_figs^SGA Figures^
 sga_stats^Fuller SGA Stats Info^
 sh_prms^Show Parameters^
 shared_pool_sql^Shared Pool & SQL^
@@ -316,6 +317,7 @@ upd_cascade^Update Cascade^
 use_utlxplan^Please run utlxplan.sql to create user's PLAN_TABLE, for 'Explain Plan' option.^
 user^User^
 user_access^User Access^
+userhits^User Hit Ratios^
 user_obj^User Objects^
 user_please^Please enter a user with at least main 'Select' privileges^
 user_proc_io^Any User Processes Performing I/O?^
