@@ -1,11 +1,5 @@
 Orac  --  DBA GUI tool for Perl/Tk; Oracle, Informix and Sybase
 
-NB: ....Oracle Development Usage Gradually Being Added...
-    .........By Andy Duncan & Richard Sutherland.........
-
-NB: ....Further Oracle DBA Development Gradually Being Added...
-    ..................By Richard Sutherland....................
-
 THIS IS A DEVELOPMENT VERSION OF ORAC, AND AN ATTEMPT TO ADD ORACLE 
 DEVELOPMENT TOOLS TO ORAC, AS WELL AS DBA ONES.  FOR STABLE DBA USAGE,
 UNTIL FURTHER NOTICE, USE THE Orac-1.2.0 DOWNLOAD.
@@ -20,6 +14,12 @@ UNTIL FURTHER NOTICE, USE THE Orac-1.2.0 DOWNLOAD.
         created by Frank Holt.  Please run up Orac, and go to Help
         information for more details (help/WebPlugIn.txt).
 =+-=+-=+-=+-=+-=+-=+-=+-=+-=+-=+-=+-=+-=+-=+-=+-=+-=+-=+-=+-=+-=+-=+-=+-=+-=+-=+
+
+NB: ....Oracle Development Usage Gradually Being Added...
+    .........By Andy Duncan & Richard Sutherland.........
+
+NB: ....Further Oracle DBA Development Gradually Being Added...
+    ..................By Richard Sutherland....................
 
 NB: This README file does not contain all of the information within
 the Orac distribution.  For more specialised information, please go
@@ -66,24 +66,27 @@ PREREQUISITES (For Everybody)
 
    At least: perl5.6.0
 
-             DBI-1.14
+             DBI-1.10
 
-             Tk800.022
+             Tk800.000
 
-             Latest relevant DBD database driver for DBI-1.13
-             (eg: For Oracle DBD-Oracle-1.06)
+             Latest relevant DBD database driver for DBI-1.10
+             (eg: For Oracle DBD-Oracle-1.xx)
 
    Oracle developers will also require Richard Sutherland's DDL::Oracle
    module.  We are using:
 
-             DDL-Oracle-1.04.tar.gz 
+             DDL-Oracle-1.07.tar.gz 
 
    This (or the latest version) is available from:
 
    http://www.perl.com/CPAN-local/modules/by-authors/id/R/RV/RVSUTHERL/
 
    For an indefinite period, the latest DDL::Oracle package will
-   come automatically with the Orac download.  This may change.
+   come automatically with the Orac download.  This may change.  If you
+   go to the DDL directory within this distribution, you will also
+   see the tools which come with the DDL::Oracle release, which may
+   be of some use to you.
 
 ORACLE DEVELOPER GRAPHICAL OPTION:
 
@@ -180,35 +183,21 @@ yourself some time by using it.
 our 'Explain Plan' functionality for Oracle users.
 
 
-Orac MONGERS (in alphabetical surname order):
+Orac Hall of Fame, in alphabetical surname order:
 
-Name               Email/Webpage                    Patches of Interest
-----               -------------                    -------------------
-
-Bruce Albrecht     <bruce@zuhause.mn.org>           Multi-User Functionality
-
-Kevin Brannen      <kbrannen@physiciansdata.com>    Informix/RulesMeister
-
-Andy Duncan        <andy_j_duncan@yahoo.com>        Oracle, OracWeb
-
-Sean Hull          <sean.hull@pobox.com>            Linux/Oracle
-                   http://www.iheavy.com/           OracWeb Guru Meister
-
-Kevin Kitts        <kkitts@his.com>                 Linux/Webmaster
-                   http://www.kkitts.com/
-
-Thomas Lowery      <stlassociates@usa.net>          Shell/OO Development
-                   http://tlowery.hypermart.net/
-
-Charles Wolfe      <cwolfe@ix.netcom.com>           NT Guru
-
-Alex Shnir         <alex@getmessage.com>            Sybase
-
-Richard Sutherland <rvsutherland@yahoo.com>         Oracle DBA & Devel Work
+Bruce Albrecht
+Kevin Brannen
+Andy Duncan <andy_j_duncan@yahoo.com> Oracle Devel Work
+Sean Hull
+Kevin Kitts
+Thomas Lowery
+Charles Wolfe, Guru
+Alex Shnir
+Richard Sutherland <rvsutherland@yahoo.com> Oracle DBA & Devel Work
 
 FUTURE OF Orac:
 
-There is no plan.  We're just going to keep going until it's time to stop.
+There is no plan.  We're just going to keep going until they take us away.
 
 
 REVISION HISTORY:
@@ -388,6 +377,8 @@ Orac-1.2.3  On the Oracle DBA side, Richard Sutherland has added a new
 
 Orac-alpha-1.2.4  Upgrade to Perl 5.6.0.  Lots of other fiddly bits to do
                   with charting, but these still very ALPHA.
+Orac-alpha-1.2.5  More development stuff, and Richard has extended
+                  DDL::Oracle usage to cover even more Oracle8i areas.
 
 EXTRA NOTES FOR LINUX USERS:
 
@@ -434,53 +425,27 @@ Environment required:
 
 Basic Perl Requirement:
 
-*. ActivePerl build 519 (or latest)
+*. ActivePerl
 
 Packages on top:
 
-*. DBD-Oracle (or DBD-Sybase etc)
+*. DBD-Oracle8 (or DBD-Sybase etc)
 *. DBI
 *. Tk
-*. Win32-TieRegistry
-
-The above environment was created under the following
-operating system conditions:
-
-NT 4.0 Enterprise Edition (SP 3, no compiler)
----------------------------------------------
-Nothing special is needed for the installation,
-which should run smoothly using these instructions:
 
 *. Install the ActivePerl binary distribution
 from ActiveState.com
 
 *. Then download and install the binaries for the
-various modules (Tk, DBI, DBD-Oracle, etc)
-from ActiveState's ftp site.
-
-All the modules come with working install scripts,
-so installation is just a matter of running
-package manager script which comes with ActivePerl.
+various modules (Tk, DBI, DBD-Oracle8, etc)
+from ActiveState's Perl package site via PPM.
 
 Then download Orac-x.y.z, install and run.
 (probably always best to use latest version)
 
-(The above instructions have also been tried on a
-Win98 box with complete success)
-
 The ActiveState URLs are:
 
-=> http://www.activestate.com/ActivePerl/
-=> http://www.activestate.com/packages/zips/
-
-Packages Required:
-------------------
-The ActiveState packages you will need, will be Tk, DBI and
-whichever DBD driver you need (eg: DBD::Oracle, DBD::Sybase).
-
-You may find problems with Win32-TieRegistry errors.  If
-this is the case, you may also need to install the Win32-TieRegistry
-package, also from packages/zips.
+=> http://www.activestate.com/
 
 Download
 --------

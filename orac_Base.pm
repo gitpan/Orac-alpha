@@ -187,9 +187,22 @@ sub show_sql
    }
    else
    {
-      $self->print_lines($header, $r_lines, $r_tlen, $r_format);
+      if ( $sql_name eq 'steps' )
+      {
+        my $obj = DDL::Oracle->new(
+                                   type => 'components',
+                                   list => [[undef]],
+                                 );
+       my $text= $obj->create ;
+  
+       $self->{Text_var}->insert('end', "\n$text\n");
+      }
+      else
+      {
+        $self->print_lines($header, $r_lines, $r_tlen, $r_format);
+        $self->see_plsql($sql);
+      }
    }
-   $self->see_plsql($sql);
 }
 
 # support func for show_sql

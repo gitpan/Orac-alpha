@@ -33,6 +33,7 @@ my $view;
 
 my %l_hlst_to_type =
 (
+  Comments         => 'comments',
   Constraints      => 'constraint',
   Functions        => 'function',
   Indexes          => 'index',
@@ -43,6 +44,7 @@ my %l_hlst_to_type =
   Procedures       => 'procedure',
   Profiles         => 'profile',
   Roles            => 'role',
+  RoleGrants       => 'role',
   Rollbacks        => 'rollback segment',
   Sequences        => 'sequence',
   SnapshotLogs     => 'snapshot log',
@@ -52,6 +54,7 @@ my %l_hlst_to_type =
   Tablespaces      => 'tablespace',
   Tab_FreeSpace    => 'table',
   Users            => 'user',
+  UserGrants       => 'user',
   Views            => 'view',
 );
 
@@ -353,28 +356,112 @@ sub all_stf {
 
    my($module, $mod_number, $mod_binds) = @_;
 
-   my $cm = $self->f_str($module, $mod_number);
+   if ( 
+           $module eq 'Views'
+        or $module eq 'Synonyms'
+        or $module eq 'UserGrants'
+        or $module eq 'Constraints'
+      )
+   {
+     my $stmt;
 
-   my $sth = $self->{Database_conn}->prepare($cm) ||
+     if ( $module eq 'Constraints' )
+     {
+       $stmt =
+        "
+         SELECT
+                owner
+              , constraint_name
+         FROM
+                dba_constraints
+         ORDER
+            BY
+                1, 2
+        ";
+     }
+     elsif ( $module eq 'Views' )
+     {
+       $stmt =
+        "
+         SELECT
+                owner
+              , view_name
+         FROM
+                dba_views
+         ORDER
+            BY
+                1, 2
+        ";
+     }
+     elsif ( $module eq 'Synonyms' )
+     {
+       $stmt =
+        "
+         SELECT
+                owner
+              , synonym_name
+         FROM
+                dba_synonyms
+         ORDER
+            BY
+                1, 2
+        ";
+     }
+     elsif ( $module eq 'UserGrants' )
+     {
+       $stmt =
+        "
+         SELECT
+                null
+              , username
+         FROM
+                dba_users
+         ORDER
+            BY
+                username
+        ";
+     }
+  
+     my $sth = $self->{Database_conn}->prepare( $stmt ) ||
                 die $self->{Database_conn}->errstr;
-   my $i;
-   for ( $i = 1 ; $i <= $mod_binds ; $i++ ){
-      $sth->bind_param($i,'%');
+     $sth->execute;
+     my $aref = $sth->fetchall_arrayref;
+     $sth->finish;
+  
+     my $obj = DDL::Oracle->new(
+                                 type => $l_hlst_to_type{ $module },
+                                 list => $aref,
+                               );
+     my $text= $obj->create ;
+  
+     $self->{Text_var}->delete('1.0', 'end');
+     $self->{Text_var}->insert('end', "$text\n");
    }
-   $sth->execute;
+   else   # Not sure we still need this ???
+   {
+     my $cm = $self->f_str($module, $mod_number);
 
-   $i = 0;
-   my $ls;
-   while($i < 100000){
-      $ls = scalar $self->{Database_conn}->func('dbms_output_get');
-      if ((!defined($ls)) || (length($ls) == 0)){
-         last;
-      }
-      $self->{Text_var}->insert('end', "$ls\n");
-      $i++;
+     my $sth = $self->{Database_conn}->prepare($cm) ||
+                die $self->{Database_conn}->errstr;
+     my $i;
+     for ( $i = 1 ; $i <= $mod_binds ; $i++ ){
+        $sth->bind_param($i,'%');
+     }
+     $sth->execute;
+
+     $i = 0;
+     my $ls;
+     while($i < 100000){
+        $ls = scalar $self->{Database_conn}->func('dbms_output_get');
+        if ((!defined($ls)) || (length($ls) == 0)){
+           last;
+        }
+        $self->{Text_var}->insert('end', "$ls\n");
+        $i++;
+     }
+
+     $self->see_plsql($cm);
    }
-
-   $self->see_plsql($cm);
 }
 
 =head2 orac_create_db
@@ -2992,12 +3079,7 @@ sub do_a_generic {
 
    my $cm;
 
-   if (
-           $l_hlst eq 'Comments'
-        or $l_hlst eq 'Refreshgroups'
-        or $l_hlst eq 'RoleGrants'
-        or $l_hlst eq 'UserGrants'
-      )
+   if ( $l_hlst eq 'Refreshgroups' )
    {
      $cm = $self->f_str( $l_hlst , '99' );
 
@@ -3103,24 +3185,9 @@ sub do_a_generic {
                                );
      $text_lines = $obj->create ;
    }
-   elsif (
-              $l_hlst eq 'Index_FreeSpace'
-           or $l_hlst eq 'Tab_FreeSpace'
-         )
-   {
-     my $obj = DDL::Oracle->new(
-                                 type => $l_hlst_to_type{ $l_hlst },
-                                 list => [
-                                           [
-                                             $owner,
-                                             $generic || $owner,
-                                           ]
-                                         ],
-                               );
-     $text_lines = $obj->show_space ;
-   }
    else
    {
+
      my $obj = DDL::Oracle->new(
                                  type => $l_hlst_to_type{ $l_hlst },
                                  list => [
@@ -3130,12 +3197,26 @@ sub do_a_generic {
                                            ]
                                          ],
                                );
-     $text_lines = $obj->create ;
+
+     if (
+             $l_hlst eq 'Tab_FreeSpace'
+          or $l_hlst eq 'Index_FreeSpace'
+        )
+     {
+       $text_lines = $obj->show_space ;
+     }
+     else
+     {
+       $text_lines = $obj->create ;
+     }
    }
 
    # Finally, pump out the monkey
 
+#here
    $window->{text}->insert('end', $text_lines);
+#   $self->{Text_var}->delete('1.0', 'end');
+#   $self->{Text_var}->insert('end', "$text_lines\n");
 
    $self->see_sql_but(\$menu_bar, \$window, \$cm, 1, \$balloon, );
 
@@ -3437,12 +3518,26 @@ sub dev_tables {
    $sth->execute;
    my $detected = 0;
 
+   if ($obj_type =~ /^PACKAGE_BODY$/){
+      $obj_type = 'PACKAGE BODY';
+   }
+
    my @res;
    my $window;
 
    my $schema = 0;
+   my $prompt = 0;
    my $resize = 0;
    my $action = 'create';
+
+   my $text ;
+   my $current_index ;
+   my $blue_tag ;
+   my $purple_tag ;
+   my $red_tag ;
+   my $green_tag ;
+   my $eraser ;
+   my $b ;
 
    while (@res = $sth->fetchrow) {
       $detected++;
@@ -3457,43 +3552,85 @@ sub dev_tables {
          $self->create_balloon_bars(\$dev_menu, \$balloon, \$window, );
          $self->window_exit_button(\$dev_menu, \$window, 1, \$balloon, );
 
+         $eraser = $window->Photo(-file=>"$FindBin::RealBin/img/eraser.gif");
+ 	
+         $b = $dev_menu->Button(-image=>$eraser,
+                                -command=>sub{
+
+              $window->Busy(-recurse=>1);
+              $self->{Main_window}->Busy(-recurse=>1);
+
+              $text->delete('1.0','end');
+
+              $self->{Main_window}->Unbusy;
+              $window->Unbusy;
+                                             }
+
+                               )->pack(side=>'right');
+
+         $balloon->attach($b, -msg => $main::lg{clear});
+
          my $dev_2_menu;
          my $balloon2;
          $self->create_balloon_bars(\$dev_2_menu, \$balloon2, \$window, );
 
          $self->double_click_message(\$window);
 
-         $dev_menu->Radiobutton(variable=>\$schema,
-                                text=>"Schema Off",
-                                value=>0
+         my $label1 = $dev_menu->Label(relief=>'ridge'
                                )->pack (-side=>'left',
                                         -anchor=>'w');
 
-         $dev_menu->Radiobutton(variable=>\$schema,
-                                text=>"Schema On",
-                                value=>1
+         $label1->Radiobutton(variable=>\$prompt,
+                              text=>"Prompt Off",
+                              value=>0
+                             )->pack (-side=>'left',
+                                      -anchor=>'w');
+
+         $label1->Radiobutton(variable=>\$prompt,
+                              text=>"On",
+                              value=>1
+                             )->pack (-side=>'left',
+                                      -anchor=>'w');
+
+         my $label2 = $dev_menu->Label(relief=>'ridge'
                                )->pack (-side=>'left',
                                         -anchor=>'w');
+
+         $label2->Radiobutton(variable=>\$schema,
+                              text=>"Schema Off",
+                              value=>0
+                             )->pack (-side=>'left',
+                                      -anchor=>'w');
+
+         $label2->Radiobutton(variable=>\$schema,
+                              text=>"On",
+                              value=>1
+                             )->pack (-side=>'left',
+                                      -anchor=>'w');
 
          my $resize_state = 'disabled';
 
-         if (($obj_type =~ /TABLE/) || ($obj_type =~ /INDEX/)) {
+         if (($obj_type =~ /^TABLE$/) || ($obj_type =~ /^INDEX$/)) {
             $resize_state = 'normal';
          }
 
-         $dev_menu->Radiobutton(variable=>\$resize,
-                                text=>"Extent Resize Off",
-                                value=>0,
-                                state=>$resize_state
+         my $label3 = $dev_menu->Label(relief=>'ridge'
                                )->pack (-side=>'left',
                                         -anchor=>'w');
 
-         $dev_menu->Radiobutton(variable=>\$resize,
-                                text=>"Extent Resize On",
-                                value=>1,
-                                state=>$resize_state
-                               )->pack (-side=>'left',
-                                        -anchor=>'w');
+         $label3->Radiobutton(variable=>\$resize,
+                              text=>"Extent Resize Off",
+                              value=>0,
+                              state=>$resize_state
+                             )->pack (-side=>'left',
+                                      -anchor=>'w');
+
+         $label3->Radiobutton(variable=>\$resize,
+                              text=>"On",
+                              value=>1,
+                              state=>$resize_state
+                             )->pack (-side=>'left',
+                                      -anchor=>'w');
 
          $dev_2_menu->Radiobutton(variable=>\$action,
                                   text=>"Create",
@@ -3510,7 +3647,7 @@ sub dev_tables {
          $resize_state = 'disabled';
 
          if ($Oracle_Version =~ /^8/){
-            if (($obj_type =~ /TABLE/) || ($obj_type =~ /INDEX/)) {
+            if (($obj_type =~ /^TABLE$/) || ($obj_type =~ /^INDEX$/)) {
                $resize_state = 'normal';
             }
          }
@@ -3522,15 +3659,69 @@ sub dev_tables {
                                  )->pack (-side=>'left',
                                           -anchor=>'w');
 
-         my(@dev_lay) = qw/-side top -padx 5 -expand yes -fill both/;
-         my $dev_top = $window->Frame->pack(@dev_lay);
+         my $compile_state = 'disabled';
+
+         if (($obj_type =~ /^FUNCTION$/) || 
+             ($obj_type =~ /^PACKAGE$/) ||
+             ($obj_type =~ /^PROCEDURE$/) ||
+             ($obj_type =~ /^TRIGGER$/) ||
+             ($obj_type =~ /^VIEW$/)
+            ) {
+            $compile_state = 'normal';
+         }
+
+         $dev_2_menu->Radiobutton(variable=>\$action,
+                                  text=>"Compile",
+                                  value=>'compile',
+                                  state=>$compile_state
+                                 )->pack (-side=>'left',
+                                          -anchor=>'w');
+
+
+         my $dev_top = $window->Frame( -relief => 'groove',
+                                     )->pack(-fill=>'both', 
+                                             -expand => 1,
+                                             -padx => 5,
+                                             -side => 'top' 
+                                            );
+
 
          $window->{text} =
-            $dev_top->ScrlListbox(-width=>50,
+            $dev_top->ScrlListbox(-width=>20,
+                                  -height => 18,
                                   -font=>$main::font{name},
                                   -background=>$main::bc,
                                   -foreground=>$main::fc
-                                 )->pack(-expand=>'yes',-fill=>'both');
+                                 )->pack(-side=>'left',
+                                         -expand=>'yes',-fill=>'both');
+
+         $text = $dev_top->Scrolled( "Text", 
+                                     -relief => 'groove',
+                                     -width => 40, 
+                                     -height => 18,
+                                     -cursor=>undef,
+                                     -foreground=>'black',
+                                     -background=>'white',
+                                     -font=>$main::font{name},
+                                     -wrap => "none",
+                                     -takefocus => 0,
+                                     -setgrid => 1
+                                   )->pack(-side=>'left',
+                                           -fill=>'both',
+                                           -expand=>'both'
+                                          );
+
+         $purple_tag = $text->tagConfigure("purple", -foreground =>"purple");
+         $blue_tag = $text->tagConfigure("blue", -foreground =>"blue");
+         $red_tag = $text->tagConfigure("red", -foreground =>"red");
+         $green_tag = $text->tagConfigure("green", -foreground =>"green");
+
+         my $adjuster1 = $dev_top->Adjuster();
+      
+         $adjuster1->packAfter(  $window->{text}, 
+                                 -side => 'left',
+                              );
+
 
          main::iconize($window);
       }
@@ -3543,6 +3734,7 @@ sub dev_tables {
       $self->{Main_window}->Unbusy;
    } else {
 
+      $window->{text}->selectionSet(0);
       $window->{text}->pack();
 
       $window->{text}->bind(
@@ -3555,11 +3747,16 @@ sub dev_tables {
                         dbh      => $self->{Database_conn},
                         resize   => $resize,
                         schema   => $schema,
+                        prompt   => $prompt,
                         heading  => 0,
                         view     => $view,
                         blksize  => $Block_Size,
                         version  => $Oracle_Version
                       );
+
+              if ($obj_type =~ /^TABLE$/){
+                 $obj_type = 'TABLE FAMILY';
+              }
 
               my $obj = DDL::Oracle->new(
                             type  => $obj_type,
@@ -3582,9 +3779,19 @@ sub dev_tables {
               elsif ( $action eq "resize" ){
                   $sql = $obj->resize;
               }
+              elsif ( $action eq "compile" ){
+                  $sql = $obj->compile;
+              }
 
-              $self->f_clr( $main::v_clr );
-              $self->{Text_var}->insert('end', $sql);
+              # What is the current mark?
+
+              $current_index = $text->index('current');
+
+              $text->insert('end', $sql . "\n\n");
+
+              $self->search_text(\$text, $current_index);
+
+	      $text->see( q{end linestart});
 
               $self->{Main_window}->Unbusy;
               $window->Unbusy;
@@ -3884,6 +4091,83 @@ sub dev_tablespace {
    }
 }
 
+sub search_text {
+   my ($self, $t, $curr) = @_;
+
+   my @blue_bits = ( 'ADD_MONTHS', 'ALTER', 'AND', 'AS', 'ASCII',
+                     'AVG', 'BEGIN', 'BIT_LENGTH', 'BLOCK', 'BODY',
+                     'CASE', 'CAST', 'CEIL', 'CHAR_LENGTH', 'CHR',
+                     'CLOSE', 'COMMIT', 'CONCAT', 'CONSTRAINT', 'CONVERT',
+                     'COUNT', 'CREATE', 'CURDATE','CURRENT_DATE','CURRENT_TIME',
+                     'CURRENT_TIMESTAMP', 'CURSOR', 'CURTIME', 'DATABASE', 
+                     'DAYOFMONTH',
+                     'DAYOFWEEK', 'DAYOFYEAR', 'DECLARATION', 'DECLARE',
+                     'DECODE', 'DELETE', 'END', 'EXCEPTION', 'EXCEPTION_INIT',
+                     'EXIT',
+                     'EXPLAIN', 'EXTRACT', 'FETCH', 'FLOOR', 'FOR',
+                     'FOUND', 'FUNCTION', 'GOTO', 'GRANT', 'GREATEST',
+                     'HINTS', 'HOUR', 'IF', 'IFNULL', 'INDEX',
+                     'INDICATOR', 'INITCAP', 'INSERT', 'INSTR', 'INSTRB',
+                     'INTERVAL', 'INTO', 'IS', 'ISOPEN', 'JAVA',
+                     'LABEL', 'LAST_DAY', 'LCASE', 'LEAST', 'LENGTH',
+                     'LENGTHB', 'LEVEL', 'LOCATE', 'LOCK', 'LOOP',
+                     'LOWER', 'LPAD', 'LTRIM', 'MAX', 'MIN',
+                     'MINUTE', 'MOD', 'MONTH', 'MONTHS_BETWEEN', 'NEXT_DAY',
+                     'NOTFOUND', 'NOW', 'NULL', 'NVL', 'OCTET_LENGTH',
+                     'OPEN', 'OR', 'PACKAGE', 'PLAN', 'POSITION',
+                     'PRAGMA', 'PROCEDURE', 'QUARTER', 'RAISE', 'RECORD',
+                     'REPLACE', 'REVOKE', 'ROLLBACK', 'ROUND', 'ROWCOUNT',
+                     'ROWNUM', 'RPAD', 'SAVEPOINT', 'SCHEMA', 'SECOND',
+                     'SELECT', 'SEQUENCE', 'SESSION', 'SET', 'SQL',
+                     'SQLCODE', 'SQLERRM','SQLTERMINATOR','STDDEV','STRUCTURE',
+                     'SUBSTR', 'SUBSTRB', 'SUM', 'SYNONYM', 'SYSDATE',
+                     'TABLE', 'TERMINATOR', 'TIMESTAMPADD', 'TIMESTAMPDIFF', 
+                     'TO_CHAR',
+                     'TO_DATE', 'TO_NUMBER', 'TRANSACTION', 'TRANSLATE', 
+                     'TRIGGER',
+                     'TRIM', 'TRUNC', 'TYPE', 'UCASE', 'UPDATE',
+                     'UPPER', 'USER', 'VARIABLE', 'VARIANCE', 'VIEW',
+                     'WEEK', 'WHILE', 'YEAR', 
+                   );
+
+   #for (@blue_bits){
+   #   $self->search_text_2(1, $_, "blue", $t, $curr);
+   #}
+
+   my @red_bits = ('[%(),;]'
+                  );
+
+   for (@red_bits){
+      $self->search_text_2(0, $_, "red", $t, $curr);
+   }
+
+   my @purple_bits = ('DATE','VARCHAR2','NUMBER','BFILE','CLOB',
+                      'LONG','CHAR'
+                  );
+
+   #for (@purple_bits){
+   #   $self->search_text_2(1, $_, "purple", $t, $curr);
+   #}
+}
+
+sub search_text_2 {
+   my ($self, $word_bound, $string, $tag, $t, $curr) = @_;
+
+   my($current, $length) = ($curr, 0);
+
+   if ($word_bound){
+      $string = '\b' . $string . '\b';
+   }
+
+   while (1){
+      $current = $$t->search(-regexp, -nocase, 
+                            -count=> \$length, $string, $current, 'end');
+      last if not $current;
+      $$t->tagAdd($tag, $current, "$current + $length char");
+      $current = $$t->index("$current + $length char");
+   }
+}
+
 # ======== Oracle Tablespace Tuning Tool ===========
 
 my ($tab_hlst, $tab_hlvl, $tabsp_sep, );
@@ -4169,12 +4453,9 @@ sub add_tabsp_contents
 
    my @params = split("\\$tabsp_sep", $path);
 
-   print "add_tabsp_contents: tabsp_sep >$tabsp_sep<\n" 
-      if ($main::debug > 0);
-   print "add_tabsp_contents: params0 >$params[0]<\n" 
-      if ($main::debug > 0);
-   print "add_tabsp_contents: params1 >$params[1]<\n" 
-      if ($main::debug > 0);
+   print "add_tabsp_contents: tabsp_sep >$tabsp_sep<\n" if ($main::debug > 0);
+   print "add_tabsp_contents: params0 >$params[0]<\n" if ($main::debug > 0);
+   print "add_tabsp_contents: params1 >$params[1]<\n" if ($main::debug > 0);
 
    # should we search $s for number of placeholders,
    # and restrict @params to that number?

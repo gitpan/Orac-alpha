@@ -36,7 +36,8 @@ functions.
 # (thanks to Tom Lowery)
 
 require 5.6.0;
-use Tk '800.022';
+
+use Tk '800.000';
 
 use FindBin;
 use lib $FindBin::RealBin;
@@ -48,8 +49,8 @@ main::splash_screen(0);
 # More requirements, and the rest of the code to be loaded
 # before the main loop.
 
-use DBI '1.14';
-$VERSION = '1.240';
+use DBI '1.10';
+$VERSION = '1.250';
 
 # Now enter strict mode
 use strict;
@@ -475,8 +476,10 @@ $bb->Label(-image=>$orac_li,
                   -anchor=>'e'
                  );
 
+my $shell_image = $main::mw->Photo(-file=>"$FindBin::RealBin/img/shell.gif");
+
 $b = $bb->Button(
-           -text=>$main::lg{shell},
+           -image=>$shell_image,
            -command=>
                  sub{
                        main::call_shell();
@@ -794,6 +797,10 @@ sub get_connected {
       # Now put up the dialogue on the main screen
       # Determine if auto log on will work. If the env
       # variables are not set, no auto log.
+
+      #$ENV{DBI_DSN} = "dbi:Oracle:orcl";
+      #$ENV{DBI_USER} = "scott";
+      #$ENV{DBI_PASS} = "tiger";
 
       print STDERR "Before DBI dsn>$ENV{DBI_DSN}<\n" if ($main::debug > 0);
       print STDERR "          user>$ENV{DBI_USER}<\n" if ($main::debug > 0);
